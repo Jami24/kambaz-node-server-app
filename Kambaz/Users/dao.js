@@ -1,7 +1,8 @@
+import model from "./model.js";
 import db from "../Database/index.js";
 import { v4 as uuidv4 } from "uuid";
 
-let { users, enrollments } = db;
+let { enrollments } = db;
 
 export const createUser = (user) => {
     const newUser = {
@@ -9,53 +10,64 @@ export const createUser = (user) => {
         _id: uuidv4(),
     };
 
-    users = [...users, newUser];
-    db.users = users;
-
-    return newUser;
+    return model.create(newUser);
 };
 
-export const findAllUsers = () => users;
+export const findAllUsers = () => {
+    return model.find();
+};
 
-export const findUserById = (userId) =>
-    users.find((user) => user._id === userId);
+export const findUserById = (userId) => {
+    return model.findById(userId);
+};
 
-export const findUserByUsername = (username) =>
-    users.find((user) => user.username === username);
+export const findUserByUsername = (username) => {
+    return model.findOne({ username: username });
+};
 
-export const findUserByCredentials = (username, password) =>
-    users.find(
-        (user) =>
-            user.username === username &&
-            user.password === password
-    );
+export const findUserByCredentials = (username, password) => {
+    return model.findOne({
+                             username: username,
+                             password: password,
+                         });
+};
 
 export const findUsersForCourse = (courseId) => {
-    return users.filter((user) =>
-                            enrollments.some(
-                                (enrollment) =>
-                                    enrollment.user === user._id &&
-                                    enrollment.course === courseId
-                            )
-    );
+    const userIds = enrollments
+        .filter((enrollment) => enrollment.course === courseId)
+        .map((enrollment) => enrollment.user);
+
+    return model.find({ _id: { $in: userIds } });
 };
 
 export const updateUser = (userId, user) => {
-    users = users.map((u) =>
-                          u._id === userId ? user : u
+    return model.updateOne(
+        { _id: userId },
+        { $set: user }
     );
-
-    db.users = users;
-
-    return users.find((u) => u._id === userId);
 };
 
 export const deleteUser = (userId) => {
-    users = users.filter((u) => u._id !== userId);
-    db.users = users;
-
     enrollments = enrollments.filter(
         (enrollment) => enrollment.user !== userId
     );
+
     db.enrollments = enrollments;
+
+    return model.deleteOne({ _id: userId });
+};
+
+export const findUsersByRole = (role) => {
+    return model.find({ role: role });
+};
+
+export const findUsersByPartialName = (partialName) => {
+    const regex = new RegExp(partialName, "i");
+
+    return model.find({
+                          $or: [
+                              { firstName: { $regex: regex } },
+                              { lastName: { $regex: regex } },
+                          ],
+                      });
 };
